@@ -34,6 +34,15 @@ class MainApplication : Application() {
         Log.i(TAG, "Verbalogix Companion ${BuildConfig.VERSION_NAME} starting")
 
         createFgsNotificationChannel()
+
+        // Enable Chrome DevTools remote inspection for the Engine tab's
+        // WebView in debug builds. Lets us answer "why is the page
+        // blank" in 30 seconds via chrome://inspect/#devices on a
+        // connected laptop. Production builds skip this — release APKs
+        // should never expose remote debugging to the network.
+        if (BuildConfig.DEBUG) {
+            android.webkit.WebView.setWebContentsDebuggingEnabled(true)
+        }
     }
 
     private fun createFgsNotificationChannel() {
