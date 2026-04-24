@@ -21,6 +21,9 @@
         android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE"
         tools:targetApi="34" />
     <uses-permission
+        android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PROJECTION"
+        tools:targetApi="34" />
+    <uses-permission
         android:name="android.permission.POST_NOTIFICATIONS"
         tools:targetApi="33" />
     <uses-permission android:name="android.permission.INTERNET" />
@@ -87,6 +90,20 @@
                 android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
                 android:value="Local IPC bridge for Verbalogix Engine: exposes the device accessibility tree and gesture dispatch over 127.0.0.1 HTTP so an on-device LLM agent can automate screen tasks without ADB. No network egress. Single-user, sideloaded power-user tool." />
         </service>
+
+        <!--
+          Screen capture service — optional, opt-in. Only active when the
+          user explicitly grants screen-capture permission via the system
+          dialog. Foreground-service type mediaProjection is mandatory on
+          Android 14+ for any service that holds a MediaProjection.
+
+          Users revoke anytime by swiping the persistent notification,
+          opening the in-app toggle, or killing the app.
+        -->
+        <service
+            android:name=".capture.ScreenCaptureService"
+            android:exported="false"
+            android:foregroundServiceType="mediaProjection" />
 
     </application>
 

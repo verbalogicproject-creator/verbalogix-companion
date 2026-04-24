@@ -10,6 +10,18 @@
     <string name="fgs_notification_title">Verbalogix Companion</string>
     <string name="fgs_notification_text">Local bridge active on port %1$d</string>
 
+    <!-- Screen-capture foreground service (opt-in) -->
+    <string name="fgs_screen_capture_title">Screen capture active</string>
+    <string name="fgs_screen_capture_text">Verbalogix Engine can read screenshots on demand. Tap to manage.</string>
+
+    <!-- Screen-capture UI on the Status tab -->
+    <string name="capture_card_header">Screen capture (vision mode)</string>
+    <string name="capture_state_active">Active — engine can request screenshots</string>
+    <string name="capture_state_inactive">Not granted — agent runs XML-only mode</string>
+    <string name="capture_state_hint">Android 15+ requires re-granting every session.</string>
+    <string name="btn_grant_capture">Grant screen capture</string>
+    <string name="btn_revoke_capture">Revoke screen capture</string>
+
     <!-- UI strings -->
     <string name="status_service_disabled">Accessibility service is not enabled</string>
     <string name="status_service_enabled">Accessibility service is enabled</string>

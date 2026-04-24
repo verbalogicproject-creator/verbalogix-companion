@@ -9,15 +9,21 @@
  */
 package com.verbalogix.companion
 
+import android.app.Activity
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
 import android.content.Intent
+import android.media.projection.MediaProjectionManager
+import android.os.Build
 import android.os.Bundle
 import android.provider.Settings
 import android.widget.Toast
 import androidx.activity.ComponentActivity
+import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -33,6 +39,8 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
+import androidx.compose.material3.Tab
+import androidx.compose.material3.TabRow
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.darkColorScheme
@@ -45,6 +53,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -88,6 +97,37 @@ private fun CompanionApp() {
     var token by remember { mutableStateOf(tokenStore.getOrCreate()) }
     var serviceEnabled by remember { mutableStateOf(false) }
     var apmState by remember { mutableStateOf(apm.current()) }
+    var captureGranted by remember { mutableStateOf(false) }
+
+    // Result launcher for the system screen-capture consent dialog. Only
+    // this path is allowed to turn a resultCode/resultData pair into a
+    // MediaProjection instance — that's Android's contract.
+    val captureLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.StartActivityForResult(),
+    ) { result ->
+        if (result.resultCode == Activity.RESULT_OK && result.data != null) {
+            val intent = Intent(ctx, com.verbalogix.companion.capture.ScreenCaptureService::class.java).apply {
+                putExtra(
+                    com.verbalogix.companion.capture.ScreenCaptureService.EXTRA_RESULT_CODE,
+                    result.resultCode,
+                )
+                putExtra(
+                    com.verbalogix.companion.capture.ScreenCaptureService.EXTRA_RESULT_DATA,
+                    result.data,
+                )
+            }
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                ctx.startForegroundService(intent)
+            } else {
+                ctx.startService(intent)
+            }
+            Toast.makeText(ctx,
+                "Screen capture granted. Remember: Android revokes it when the app is killed.",
+                Toast.LENGTH_LONG).show()
+        } else {
+            Toast.makeText(ctx, "Screen capture permission declined", Toast.LENGTH_SHORT).show()
+        }
+    }
 
     LaunchedEffect(Unit) {
         // Cheap polling — the proper fix lives in AdvancedProtectionDetector
@@ -95,64 +135,167 @@ private fun CompanionApp() {
         while (true) {
             serviceEnabled = EngineAccessibilityService.current() != null
             apmState = apm.current()
+            captureGranted = com.verbalogix.companion.capture.ScreenCaptureService.current() != null
             delay(1_000)
         }
     }
 
+    // Two-tab navigation: the Status tab hosts the existing operator
+    // surface (service toggle, token, URL); the Engine tab embeds the
+    // engine's web UI via WebView. Selection state is kept inside the
+    // composable because there is no reason to persist it across app
+    // kills — the user picks a tab per session.
+    var selectedTab by remember { mutableStateOf(0) }
+
     MaterialTheme(colorScheme = darkColorScheme(primary = Color(0xFF00FF88))) {
         Surface(color = MaterialTheme.colorScheme.background, modifier = Modifier.fillMaxSize()) {
             Scaffold(
-                topBar = { TopAppBar(title = { Text("Verbalogix Companion") }) },
-            ) { inner ->
-                Column(
-                    modifier = Modifier
-                        .padding(inner)
-                        .padding(16.dp)
-                        .verticalScroll(rememberScrollState()),
-                ) {
-                    ApmBanner(state = apmState)
-                    Spacer(Modifier.height(12.dp))
-
-                    StatusCard(
-                        serviceEnabled = serviceEnabled,
-                        serverPort = EngineHttpService.DEFAULT_PORT,
-                        apmBlocked = apmState == ApmState.ON,
-                        onOpenSettings = {
-                            ctx.startActivity(
-                                Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS).addFlags(
-                                    Intent.FLAG_ACTIVITY_NEW_TASK,
-                                ),
+                topBar = {
+                    Column {
+                        TopAppBar(title = { Text("Verbalogix Companion") })
+                        TabRow(selectedTabIndex = selectedTab) {
+                            Tab(
+                                selected = selectedTab == 0,
+                                onClick = { selectedTab = 0 },
+                                text = { Text("Status") },
                             )
-                        },
-                    )
+                            Tab(
+                                selected = selectedTab == 1,
+                                onClick = { selectedTab = 1 },
+                                text = { Text("Engine") },
+                            )
+                        }
+                    }
+                },
+            ) { inner ->
+                Box(modifier = Modifier.padding(inner).fillMaxSize()) {
+                    when (selectedTab) {
+                        0 -> StatusTab(
+                            ctx = ctx,
+                            token = token,
+                            onTokenRegenerate = {
+                                token = tokenStore.regenerate()
+                                Toast.makeText(ctx, "New token generated — update the engine config", Toast.LENGTH_SHORT).show()
+                            },
+                            serviceEnabled = serviceEnabled,
+                            apmState = apmState,
+                            captureGranted = captureGranted,
+                            onRequestCapture = {
+                                val mpm = ctx.getSystemService(Context.MEDIA_PROJECTION_SERVICE)
+                                        as MediaProjectionManager
+                                captureLauncher.launch(mpm.createScreenCaptureIntent())
+                            },
+                            onRevokeCapture = {
+                                com.verbalogix.companion.capture.ScreenCaptureService.stop(ctx)
+                            },
+                        )
+                        1 -> EngineWebView(engineUrl = "http://127.0.0.1:8000")
+                    }
+                }
+            }
+        }
+    }
+}
 
-                    Spacer(Modifier.height(12.dp))
+@Composable
+private fun StatusTab(
+    ctx: Context,
+    token: String,
+    onTokenRegenerate: () -> Unit,
+    serviceEnabled: Boolean,
+    apmState: ApmState,
+    captureGranted: Boolean,
+    onRequestCapture: () -> Unit,
+    onRevokeCapture: () -> Unit,
+) {
+    Column(
+        modifier = Modifier
+            .padding(16.dp)
+            .verticalScroll(rememberScrollState()),
+    ) {
+        ApmBanner(state = apmState)
+        Spacer(Modifier.height(12.dp))
 
-                    TokenCard(
-                        token = token,
-                        onCopy = { copyToClipboard(ctx, "bearer-token", token) },
-                        onRegenerate = {
-                            token = tokenStore.regenerate()
-                            Toast.makeText(ctx, "New token generated — update the engine config", Toast.LENGTH_SHORT).show()
-                        },
-                    )
+        StatusCard(
+            serviceEnabled = serviceEnabled,
+            serverPort = EngineHttpService.DEFAULT_PORT,
+            apmBlocked = apmState == ApmState.ON,
+            onOpenSettings = {
+                ctx.startActivity(
+                    Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS).addFlags(
+                        Intent.FLAG_ACTIVITY_NEW_TASK,
+                    ),
+                )
+            },
+        )
 
-                    Spacer(Modifier.height(12.dp))
+        Spacer(Modifier.height(12.dp))
 
-                    UrlCard(
-                        port = EngineHttpService.DEFAULT_PORT,
-                        onCopy = { url -> copyToClipboard(ctx, "server-url", url) },
-                    )
+        CaptureCard(
+            granted = captureGranted,
+            onGrant = onRequestCapture,
+            onRevoke = onRevokeCapture,
+        )
 
-                    Spacer(Modifier.height(24.dp))
+        Spacer(Modifier.height(12.dp))
 
-                    Text(
-                        text = "Both values go into the engine as env vars: " +
-                                "COMPANION_URL and COMPANION_BEARER. See " +
-                                "ANDROID-COMPANION-APP-BRIEF.md in the engine repo.",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
+        TokenCard(
+            token = token,
+            onCopy = { copyToClipboard(ctx, "bearer-token", token) },
+            onRegenerate = onTokenRegenerate,
+        )
+
+        Spacer(Modifier.height(12.dp))
+
+        UrlCard(
+            port = EngineHttpService.DEFAULT_PORT,
+            onCopy = { url -> copyToClipboard(ctx, "server-url", url) },
+        )
+
+        Spacer(Modifier.height(24.dp))
+
+        Text(
+            text = "Both values go into the engine as env vars: " +
+                    "COMPANION_URL and COMPANION_BEARER. See " +
+                    "ANDROID-COMPANION-APP-BRIEF.md in the engine repo.",
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+    }
+}
+
+@Composable
+private fun CaptureCard(granted: Boolean, onGrant: () -> Unit, onRevoke: () -> Unit) {
+    Card(modifier = Modifier.fillMaxWidth()) {
+        Column(modifier = Modifier.padding(12.dp)) {
+            Text(
+                text = stringResource(R.string.capture_card_header),
+                style = MaterialTheme.typography.titleMedium,
+            )
+            Spacer(Modifier.height(4.dp))
+            Text(
+                text = if (granted) stringResource(R.string.capture_state_active)
+                       else stringResource(R.string.capture_state_inactive),
+                style = MaterialTheme.typography.bodyMedium,
+                color = if (granted) MaterialTheme.colorScheme.primary
+                        else MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            if (!granted) {
+                Spacer(Modifier.height(2.dp))
+                Text(
+                    text = stringResource(R.string.capture_state_hint),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+            Spacer(Modifier.height(12.dp))
+            if (granted) {
+                OutlinedButton(onClick = onRevoke, modifier = Modifier.fillMaxWidth()) {
+                    Text(stringResource(R.string.btn_revoke_capture))
+                }
+            } else {
+                Button(onClick = onGrant, modifier = Modifier.fillMaxWidth()) {
+                    Text(stringResource(R.string.btn_grant_capture))
                 }
             }
         }

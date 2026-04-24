@@ -16,6 +16,9 @@ import com.verbalogix.companion.MainApplication
 import com.verbalogix.companion.accessibility.EngineAccessibilityService
 import com.verbalogix.companion.accessibility.NodeSerializer
 import com.verbalogix.companion.apm.AdvancedProtectionDetector
+import com.verbalogix.companion.capture.ScreenCaptureService
+import io.ktor.http.ContentType
+import io.ktor.server.response.respondBytes
 import io.ktor.http.HttpStatusCode
 import io.ktor.serialization.kotlinx.json.json
 import io.ktor.server.application.ApplicationCall
@@ -215,7 +218,37 @@ class LocalHttpServer(
 
                 get("/screenshot") {
                     if (!call.requireAuth()) return@get
-                    call.respond(HttpStatusCode.NotImplemented, ScreenshotStubResponse())
+                    // Two failure modes, each with its own status code so the
+                    // engine can distinguish "user didn't grant" from "something
+                    // broke":
+                    //   503 — screen-capture service not running (expected
+                    //         state until the user taps Grant)
+                    //   500 — capture pipeline threw (rare; signals a bug)
+                    val svc = ScreenCaptureService.current()
+                    if (svc == null) {
+                        call.respond(HttpStatusCode.ServiceUnavailable,
+                            ScreenshotStubResponse(
+                                error = "screen_capture_not_granted",
+                                fallback = "use_mode_xml",
+                                hint = "Open the Verbalogix Companion app and tap 'Grant screen capture' on the Status tab. Android 15+ requires re-granting every app session.",
+                            ))
+                        return@get
+                    }
+                    val png = try {
+                        svc.captureNow()
+                    } catch (t: Throwable) {
+                        Log.e(TAG, "captureNow threw", t)
+                        call.respond(HttpStatusCode.InternalServerError,
+                            ErrorDto("capture_failed", t.message ?: t::class.java.simpleName))
+                        return@get
+                    }
+                    if (png == null) {
+                        call.respond(HttpStatusCode.ServiceUnavailable,
+                            ErrorDto("no_frame_available",
+                                "VirtualDisplay hasn't produced a frame yet — try again."))
+                        return@get
+                    }
+                    call.respondBytes(png, ContentType("image", "png"))
                 }
 
                 webSocket("/events") {
