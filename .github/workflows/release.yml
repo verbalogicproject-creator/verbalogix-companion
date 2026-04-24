@@ -26,6 +26,10 @@ on:
         description: 'Tag to release (e.g. v0.1.0)'
         required: true
 
+# Opt into Node.js 24 explicitly — see build.yml for rationale.
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
+
 jobs:
   release:
     runs-on: ubuntu-latest
