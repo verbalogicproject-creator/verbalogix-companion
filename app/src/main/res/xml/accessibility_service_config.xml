@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  AccessibilityService capabilities + event filter.
+
+  Locked decisions from the research brief (docs/ANDROID-COMPANION-APP-BRIEF.md
+  in the engine repo):
+
+  - accessibilityEventTypes: only the events the Screen Agent loop actually
+    needs. Drops scroll spam, hover spam, announce spam etc. at the OS level
+    before onAccessibilityEvent() is even called. Tier 1 of the 3-tier
+    throttling strategy.
+
+  - canPerformGestures: required so dispatchGesture() works for coordinate-
+    based taps on canvases / WebViews / games.
+
+  - canRetrieveWindowContent: required for AccessibilityNodeInfo tree traversal.
+
+  - notificationTimeout=100ms: OS-level floor on same-type/same-window event
+    rate. Free layer under the coroutine debounce in EventStream.
+
+  - canRequestFilterKeyEvents: intentionally NOT set — we do not snoop on the
+    keyboard. Keep the trust surface minimal.
+
+  - canRequestFingerprintGestures: not set — unrelated feature.
+-->
+<accessibility-service
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    android:accessibilityEventTypes="typeWindowStateChanged|typeViewClicked|typeViewFocusChanged|typeViewTextChanged|typeWindowContentChanged|typeViewScrolled"
+    android:accessibilityFeedbackType="feedbackGeneric"
+    android:accessibilityFlags="flagDefault|flagRetrieveInteractiveWindows|flagReportViewIds|flagIncludeNotImportantViews"
+    android:canPerformGestures="true"
+    android:canRetrieveWindowContent="true"
+    android:notificationTimeout="100"
+    android:description="@string/accessibility_service_description" />

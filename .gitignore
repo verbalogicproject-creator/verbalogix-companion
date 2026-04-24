@@ -1,0 +1,51 @@
+# Gradle
+.gradle/
+build/
+!gradle-wrapper.jar
+!gradle-wrapper.properties
+
+# Android Studio / IntelliJ
+.idea/
+*.iml
+*.ipr
+*.iws
+.cxx/
+local.properties
+captures/
+
+# Signing — never commit keystores or their credentials
+*.jks
+*.keystore
+keystore.properties
+key.properties
+app/keystore.jks
+
+# Compiled outputs
+*.apk
+*.aab
+*.ap_
+*.dex
+*.class
+
+# Native binaries
+*.so
+*.dylib
+*.dll
+
+# Generated sources
+generated/
+gen/
+out/
+
+# Test output
+*.hprof
+reports/
+
+# OS cruft
+.DS_Store
+Thumbs.db
+
+# Local tooling
+.kotlin/
+.settings/
+.vscode/

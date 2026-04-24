@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!--
+      Base theme — Material3 Dynamic Color compatible. The actual colour scheme
+      is declared in Compose (MaterialTheme) so this only exists to give the
+      Activity a valid framework theme during bootstrap.
+    -->
+    <style name="Theme.VerbalogixCompanion" parent="android:Theme.Material.NoActionBar">
+        <item name="android:windowNoTitle">true</item>
+        <item name="android:windowActionBar">false</item>
+        <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="android:navigationBarColor">@android:color/transparent</item>
+        <item name="android:windowLightStatusBar">false</item>
+    </style>
+</resources>

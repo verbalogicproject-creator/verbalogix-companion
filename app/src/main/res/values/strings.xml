@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Verbalogix Companion</string>
+    <string name="accessibility_service_label">Verbalogix Companion</string>
+    <string name="accessibility_service_description">Exposes the accessibility tree and gesture dispatch over 127.0.0.1 so the Verbalogix Engine can automate Screen Agent tasks without ADB. Single-user, power-user tool. Not a disability aid.</string>
+
+    <!-- Foreground service notification -->
+    <string name="fgs_notification_channel_name">Companion bridge</string>
+    <string name="fgs_notification_channel_desc">Keeps the local IPC server alive while the engine is using it.</string>
+    <string name="fgs_notification_title">Verbalogix Companion</string>
+    <string name="fgs_notification_text">Local bridge active on port %1$d</string>
+
+    <!-- UI strings -->
+    <string name="status_service_disabled">Accessibility service is not enabled</string>
+    <string name="status_service_enabled">Accessibility service is enabled</string>
+    <string name="status_server_stopped">Local server is not running</string>
+    <string name="status_server_running">Local server is running at %1$s</string>
+    <string name="status_apm_blocked">Advanced Protection Mode is active — the service cannot run. The engine will use its ADB Screen Agent fallback.</string>
+
+    <string name="btn_open_accessibility_settings">Open Accessibility Settings</string>
+    <string name="btn_copy_token">Copy bearer token</string>
+    <string name="btn_copy_url">Copy server URL</string>
+    <string name="btn_regenerate_token">Regenerate token</string>
+
+    <string name="label_bearer_token">Bearer token (paste into COMPANION_BEARER env var)</string>
+    <string name="label_server_url">Server URL</string>
+
+    <string name="copied_to_clipboard">Copied</string>
+</resources>

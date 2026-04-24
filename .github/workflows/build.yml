@@ -1,0 +1,86 @@
+name: build
+
+# Triggered on every push to any branch + every PR. Produces a debug APK
+# and uploads it as a workflow artifact. This is the primary build path
+# while the project has no local laptop builds — the developer downloads
+# the APK from the Actions run and sideloads it.
+#
+# Security note: no untrusted input (issue titles, commit messages, PR
+# descriptions, etc.) is interpolated into any `run:` script. All dynamic
+# values come from GitHub-controlled env vars or from our own trusted
+# outputs. See release.yml for the env-var pattern if any untrusted input
+# is ever needed here.
+
+on:
+  push:
+    branches: ['**']
+  pull_request:
+    branches: [main, master]
+  workflow_dispatch:
+
+concurrency:
+  group: build-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-debug:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17 (Temurin)
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+          cache: gradle
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Generate Gradle wrapper (first-run bootstrap)
+        # The repo intentionally does not commit the Gradle wrapper - every
+        # CI run generates a fresh one from the declared Gradle version. This
+        # eliminates a class of "stale-wrapper" issues and keeps the repo
+        # free of binary blobs.
+        run: gradle wrapper --gradle-version 8.11.1 --distribution-type bin
+
+      - name: Show build tool versions
+        run: |
+          ./gradlew --version
+          java -version
+
+      - name: Assemble debug APK
+        run: ./gradlew :app:assembleDebug --no-daemon --stacktrace
+
+      - name: Locate APK (GITHUB_SHA is trusted, shell-safe)
+        id: apk
+        run: |
+          APK=$(find app/build/outputs/apk/debug -name "*.apk" | head -1)
+          SHORT_SHA="${GITHUB_SHA:0:7}"
+          echo "path=$APK" >> "$GITHUB_OUTPUT"
+          echo "name=verbalogix-companion-debug-${SHORT_SHA}.apk" >> "$GITHUB_OUTPUT"
+          ls -la "$APK"
+
+      - name: Upload APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ steps.apk.outputs.name }}
+          path: ${{ steps.apk.outputs.path }}
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Post-build summary
+        run: |
+          {
+            echo "### Debug APK built"
+            echo ""
+            echo "Download from the Artifacts section of this run, then sideload:"
+            echo ""
+            echo '```bash'
+            echo "adb install -r verbalogix-companion-debug-*.apk"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"

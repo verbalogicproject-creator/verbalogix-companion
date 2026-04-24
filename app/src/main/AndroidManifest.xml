@@ -1,0 +1,93 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
+
+    <!--
+      Permissions
+      - FOREGROUND_SERVICE: keep the AccessibilityService + Ktor server alive.
+      - FOREGROUND_SERVICE_SPECIAL_USE: required on Android 14+ (API 34) for the
+        specialUse FGS type. Subject to Play Console review (justification below).
+      - POST_NOTIFICATIONS: needed on Android 13+ to show the FGS notification.
+      - INTERNET: loopback HTTP server binding (still gated by the OS permission
+        model even though we only bind to 127.0.0.1).
+      - QUERY_ADVANCED_PROTECTION_MODE: needed on Android 17+ to detect APM and
+        hand off to the engine's ADB fallback automatically. Declared
+        maxSdkVersion=36 would prevent the permission from applying below 17,
+        but we omit that — the manifest merger on older APIs just ignores the
+        unknown permission name.
+    -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission
+        android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE"
+        tools:targetApi="34" />
+    <uses-permission
+        android:name="android.permission.POST_NOTIFICATIONS"
+        tools:targetApi="33" />
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission
+        android:name="android.permission.QUERY_ADVANCED_PROTECTION_MODE"
+        tools:ignore="ProtectedPermissions" />
+
+    <application
+        android:name=".MainApplication"
+        android:allowBackup="false"
+        android:icon="@mipmap/ic_launcher"
+        android:label="@string/app_name"
+        android:roundIcon="@mipmap/ic_launcher_round"
+        android:supportsRtl="true"
+        android:theme="@style/Theme.VerbalogixCompanion"
+        tools:targetApi="33">
+
+        <activity
+            android:name=".MainActivity"
+            android:exported="true"
+            android:label="@string/app_name"
+            android:theme="@style/Theme.VerbalogixCompanion">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+
+        <!--
+          AccessibilityService declaration.
+
+          isAccessibilityTool="false" is deliberate and honest — Google restricts
+          the `true` value to disability tools (screen readers, switch input,
+          voice input, Braille). Automation companion apps do NOT qualify; the
+          brief deliberately preserves Play policy compliance.
+        -->
+        <service
+            android:name=".accessibility.EngineAccessibilityService"
+            android:exported="true"
+            android:label="@string/accessibility_service_label"
+            android:permission="android.permission.BIND_ACCESSIBILITY_SERVICE"
+            android:isAccessibilityTool="false">
+            <intent-filter>
+                <action android:name="android.accessibilityservice.AccessibilityService" />
+            </intent-filter>
+            <meta-data
+                android:name="android.accessibilityservice"
+                android:resource="@xml/accessibility_service_config" />
+        </service>
+
+        <!--
+          Foreground service — hosts the Ktor HTTP/WebSocket server + keeps the
+          AccessibilityService connection alive across app backgrounding.
+
+          foregroundServiceType="specialUse" is required on Android 14+.
+          The PROPERTY_SPECIAL_USE_FGS_SUBTYPE is Google Play review material:
+          keep the description honest and specific.
+        -->
+        <service
+            android:name=".http.EngineHttpService"
+            android:exported="false"
+            android:foregroundServiceType="specialUse">
+            <property
+                android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
+                android:value="Local IPC bridge for Verbalogix Engine: exposes the device accessibility tree and gesture dispatch over 127.0.0.1 HTTP so an on-device LLM agent can automate screen tasks without ADB. No network egress. Single-user, sideloaded power-user tool." />
+        </service>
+
+    </application>
+
+</manifest>

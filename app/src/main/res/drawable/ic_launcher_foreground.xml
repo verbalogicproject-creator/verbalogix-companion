@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Placeholder launcher foreground — a single phosphor-green "V" glyph in the
+     safe zone. Replace with a proper brand icon before public release. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <path
+        android:fillColor="#00FF88"
+        android:pathData="M34,30 L54,74 L74,30 L68,30 L54,60 L40,30 Z" />
+</vector>
