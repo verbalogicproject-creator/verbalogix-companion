@@ -14,11 +14,9 @@ import com.verbalogix.companion.http.EventDto
 import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
-import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.conflate
 import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.flow.distinctUntilChanged
-import kotlinx.coroutines.flow.filter
 
 /**
  * Throttled AccessibilityEvent pipeline.
@@ -49,7 +47,6 @@ class EventStream {
             .debounce(DEBOUNCE_MS)
             .distinctUntilChanged { old, new -> sameContentBurst(old, new) }
             .conflate()
-            .asDropSafe()
 
     /**
      * Map an AccessibilityEvent onto our DTO and emit. Returning synchronously
@@ -130,13 +127,6 @@ class EventStream {
         }
         return Integer.toHexString(key.hashCode())
     }
-
-    /**
-     * Small shim — `SharedFlow.asSharedFlow()` returns a read-only view; this
-     * alias exists purely so the call site reads in the right direction.
-     */
-    private fun <T> MutableSharedFlow<T>.asDropSafe(): Flow<T> =
-        asSharedFlow().filter { true }
 
     companion object {
         private const val DEBOUNCE_MS = 80L

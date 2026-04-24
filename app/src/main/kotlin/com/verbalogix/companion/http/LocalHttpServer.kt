@@ -33,12 +33,12 @@ import io.ktor.server.routing.post
 import io.ktor.server.routing.routing
 import io.ktor.server.websocket.WebSockets
 import io.ktor.server.websocket.webSocket
+import io.ktor.websocket.CloseReason
 import io.ktor.websocket.Frame
+import io.ktor.websocket.close
 import io.ktor.websocket.send
-import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.launch
 import kotlinx.serialization.json.Json
-import kotlin.time.Duration.Companion.seconds
 
 /**
  * Embedded Ktor CIO server bound to `127.0.0.1`.
@@ -86,7 +86,7 @@ class LocalHttpServer(
             host = LOOPBACK,
         ) {
             install(ContentNegotiation) { json(jsonCodec) }
-            install(WebSockets) { pingPeriod = 15.seconds }
+            install(WebSockets) { pingPeriodMillis = 15_000 }
             install(StatusPages) {
                 exception<Throwable> { call, cause ->
                     Log.e(TAG, "unhandled route error", cause)
@@ -222,8 +222,7 @@ class LocalHttpServer(
                     val token = call.request.queryParameters["token"]
                         ?: call.request.headers["Authorization"]?.removePrefix("Bearer ")?.trim()
                     if (token == null || !tokenStore.validate(token)) {
-                        close(io.ktor.websocket.CloseReason(
-                            io.ktor.websocket.CloseReason.Codes.VIOLATED_POLICY, "unauthorized"))
+                        close(CloseReason(CloseReason.Codes.VIOLATED_POLICY, "unauthorized"))
                         return@webSocket
                     }
                     val svc = EngineAccessibilityService.current() ?: run {
