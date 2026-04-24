@@ -25,7 +25,7 @@
 -->
 <accessibility-service
     xmlns:android="http://schemas.android.com/apk/res/android"
-    android:accessibilityEventTypes="typeWindowStateChanged|typeViewClicked|typeViewFocusChanged|typeViewTextChanged|typeWindowContentChanged|typeViewScrolled"
+    android:accessibilityEventTypes="typeWindowStateChanged|typeViewClicked|typeViewFocused|typeViewTextChanged|typeWindowContentChanged|typeViewScrolled"
     android:accessibilityFeedbackType="feedbackGeneric"
     android:accessibilityFlags="flagDefault|flagRetrieveInteractiveWindows|flagReportViewIds|flagIncludeNotImportantViews"
     android:canPerformGestures="true"
