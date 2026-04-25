@@ -76,6 +76,14 @@ fun EngineWebView(
                         mediaPlaybackRequiresUserGesture = false  // voice loop plays TTS
                         useWideViewPort = true
                         loadWithOverviewMode = true
+                        // Force fresh fetches from the local engine. The
+                        // engine SPA is served from 127.0.0.1 — bandwidth
+                        // is free, latency is sub-millisecond — but cached
+                        // index.html across companion-app upgrades has
+                        // bitten us once already. LOAD_NO_CACHE flushes
+                        // every load so engine-side HTML/JS changes
+                        // propagate the moment the user reloads the tab.
+                        cacheMode = android.webkit.WebSettings.LOAD_NO_CACHE
                     }
 
                     layoutParams = ViewGroup.LayoutParams(
